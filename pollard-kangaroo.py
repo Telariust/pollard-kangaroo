@@ -435,7 +435,7 @@ def KANGAROOS():
 		DP_rarity = 2**pow2dp
 
 	# settings by 57fe
-	# x0.7 expected of 2w^(1/2) group operations
+	# x1.3 expected of 2w^(1/2) group operations
 	elif flag_profile ==  "by 57fe":
 		# pow2 size herd T+W (number of kangaroos in T/W herd), affects max size jump, affects discriminator
 		pow2kang = 3
@@ -456,7 +456,7 @@ def KANGAROOS():
 		DP_rarity = 2**pow2dp
 
 	# settings by Pollard, Oorschot, Wiener
-	# x0.2 expected of 2w^(1/2) group operations
+	# x5 expected of 2w^(1/2) group operations
 	#elif flag_profile ==  "standart":
 	else:
 		# pow2 size herd T+W (number of kangaroos in T/W herd), affects max size jump, affects discriminator
