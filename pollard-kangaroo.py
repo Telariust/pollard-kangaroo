@@ -1,5 +1,5 @@
 #!/usr/bin/python
-	
+
 # based on (fe57.org/forum/thread.php?board=4&thema=1#1)
 
 #######################
@@ -10,9 +10,9 @@ from __future__ import print_function
 
 pow2bits	= 32	# bits/suborder/exp key
 
-flag_profile	= "optimal"	# settings by Telariust ; x1 expected of 2w^(1/2) group operations
+flag_profile	= "optimal"	# settings by Telariust ; x0.9 expected of 2w^(1/2) group operations
 #flag_profile	= "by 57fe"	# settings by 57fe ; x1.3 expected of 2w^(1/2) group operations
-#flag_profile	= "standart"	# settings by Pollard, Oorschot, Wiener ; x5 expected of 2w^(1/2) group operations
+#flag_profile	= "standart"	# settings by Pollard, Oorschot, Wiener ; x3.0 expected of 2w^(1/2) group operations
 
 
 #######################
@@ -393,7 +393,7 @@ def getPubkey(new_prvkey, flag_compress):
 		else:
 			new_pubkey = '03%064x' % int(hex(Xcoord)[2:66],16)
 	else:
-		new_pubkey = '04%064x' % (int(hex(Xcoord)[2:66],16), int(hex(Ycoord)[2:66],16))
+		new_pubkey = '04%064x%064x' % (int(hex(Xcoord)[2:66],16), int(hex(Ycoord)[2:66],16))
 
 	return new_pubkey
 
@@ -406,7 +406,7 @@ def getPubkey(new_prvkey, flag_compress):
 def KANGAROOS():
 
 	# settings by Telariust
-	# x1.0 expected of 2w^(1/2) group operations
+	# x0.9 expected of 2w^(1/2) group operations
 	if flag_profile == "optimal":
 		# pow2 size herd T+W (number of kangaroos in T/W herd), affects max size jump, affects discriminator
 		pow2kang = 0
@@ -431,7 +431,7 @@ def KANGAROOS():
 		range2 = 1	# 1 for T1+W1
 
 		# discriminator for filter added new distinguished points (ram economy)
-		pow2dp = ((pow2W - 2*pow2kang)//2)-1	# 
+		pow2dp = ((pow2W - 2*pow2kang)//2)-2	# 
 		DP_rarity = 2**pow2dp
 
 	# settings by 57fe
@@ -456,7 +456,7 @@ def KANGAROOS():
 		DP_rarity = 2**pow2dp
 
 	# settings by Pollard, Oorschot, Wiener
-	# x5 expected of 2w^(1/2) group operations
+	# x3 expected of 2w^(1/2) group operations
 	#elif flag_profile ==  "standart":
 	else:
 		# pow2 size herd T+W (number of kangaroos in T/W herd), affects max size jump, affects discriminator
@@ -481,7 +481,7 @@ def KANGAROOS():
 		range2 = 1	# 1 for T1+W1
 
 		# discriminator for filter added new distinguished points (ram economy)
-		pow2dp = ((pow2W - 2*pow2kang)//2)-1	# 
+		pow2dp = ((pow2W - 2*pow2kang)//2)-2	# 
 		DP_rarity = 2**pow2dp
 
 
@@ -943,7 +943,6 @@ if __name__ == '__main__':
 					print('[i] pubkey#%s randomly generated in range [2^%s..2^%s]' % (pow2bits, pow2L, pow2U))
 				else:
 					print('[i] pubkey#%s loaded from default table' % pow2bits)
-
 			else:
 				if 1:
 					prvkey0 = random.randint(L,U)
