@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
-# based on (fe57.org/forum/thread.php?board=4&thema=1#1)
+# based on code by 57fe, 2019
+# fe57.org/forum/thread.php?board=4&thema=1#1
 
 #######################
 # print() compatibility python 2/3
@@ -24,7 +25,7 @@ timeit_eachnewprvkey = True	# gen new privkey each loop?
 prngseed	= 0	# 0 for random, or any for replay results
 flag_debug	= 0	# 0, 1, 2
 
-version = '0.8'
+version = '0.82'
 
 # low order pubkeys
 # default_table (demo/debug)
@@ -311,21 +312,23 @@ def prefSI(num):
 #print('%s' % prefSI(int(sys.argv[1])));exit(1)
 
 
-def time_format(time, v=(0,0,1,1,1,1,0,0)):
+def time_format(time, v=(1,1,1,1,1,1,0,0)):
 	sec  = int(time)
 	msec = int((time%1)*1000)
 	mcsec= int((((time%1)*1000)%1)*1000)
 	res  = ''	
-	#if v[0]: res += ' '+'%02s'%str((sec//(60*60*24*30))//12)	+'y'	# year
-	yr = (sec//(60*60*24*30))//12
-	if v[0]: res += ' '+'%06s'%(yr if yr<10**3 else prefSI(yr))	+'y'	# year
-	if v[1]: res += ' '+'%02s'%str((sec//(60*60*24*30))%12)		+'m'	# month
-	if v[2]: res += ' '+'%02s'%str((sec//(60*60*24))%30)		+'d'	# day
-	if v[3]: res += ' '+'%02d'%int((sec//(60*60))%24)		+''	# hour
-	if v[4]: res += ':'+'%02d'%int((sec//(60*1))%60)		+''	# min
-	if v[5]: res += ':'+'%02d'%int((sec//(1*1))%60)			+'s'	# sec
-	if v[6]: res += ' '+'%03d'%msec					+'ms'	# msec
-	if v[7]: res += ' '+'%03d'%mcsec				+'mcs'	# mcsec
+	if v[0]: 
+		y_tmp = (sec//(60*60*24*30))//12
+		if y_tmp>0: res += ' '+'%s'%(y_tmp if y_tmp<10**3 else prefSI(y_tmp))	+'y'	# year
+	if v[1]:
+		m_tmp = (sec//(60*60*24*30))%12
+		if m_tmp>0 or y_tmp>0: res += ' '+'%02s'%str(m_tmp)			+'m'	# month
+	if v[2]: res += ' '+'%02s'%str((sec//(60*60*24))%30)				+'d'	# day
+	if v[3]: res += ' '+'%02d'%int((sec//(60*60))%24)				+''	# hour
+	if v[4]: res += ':'+'%02d'%int((sec//(60*1))%60)				+''	# min
+	if v[5]: res += ':'+'%02d'%int((sec//(1*1))%60)					+'s'	# sec
+	if v[6]: res += ' '+'%03d'%msec							+'ms'	# msec
+	if v[7]: res += ' '+'%03d'%mcsec						+'mcs'	# mcsec
 	return res
 #print('[time] %s'%time_format(int(sys.argv[1])));exit(1)
 
@@ -452,7 +455,7 @@ def KANGAROOS():
 		range2 = W	# by 57fe
 
 		# discriminator for filter added new distinguished points (ram economy)
-		pow2dp = ((pow2U - 2*pow2kang)//2)-2	# by 57fe
+		pow2dp = ((pow2W - 2*pow2kang)//2)-2	# by 57fe
 		DP_rarity = 2**pow2dp
 
 	# settings by Pollard, Oorschot, Wiener
@@ -745,13 +748,13 @@ def KANGAROOS():
 					)
 			if 1 or flag_debug < 1: 
 				printstr += '; dp/kgr=%.1f' % ( 1.0*(len(DTp)+len(DWp))/(HTmax+HWmax) )
-			printstr += '; [%s ' % ( time_format(t2-t0, (0,0,1,1,1,1,0,0)) )
+			printstr += '; [%s ' % ( time_format(t2-t0, (1,1,1,1,1,1,0,0)) )
 			printstr += 'lost_TIME_left'
 			timeleft = (t2-t0)*(1-(1.0*n_jump/(2*Wsqrt)))/(1.0*n_jump/(2*Wsqrt))
 			if timeleft > 0:
-				printstr += '%s ]  ' % ( time_format(timeleft, (0,0,1,1,1,1,0,0)) )
+				printstr += '%s ]  ' % ( time_format(timeleft, (1,1,1,1,1,1,0,0)) )
 			else:
-				printstr += '%s ]  ' % ( time_format(0, (0,0,1,1,1,1,0,0)) )
+				printstr += '%s ]  ' % ( time_format(0, (1,1,1,1,1,1,0,0)) )
 			if sys.version_info[0] == 2:
 				print(printstr, end='')
 				sys.stdout.flush()
@@ -775,10 +778,11 @@ if __name__ == '__main__':
 	if os.name == 'nt':
 		#freeze_support()
 		pass
-
+                                       ##
 	print("[################################################]")
-	print("[# ECDSA Pollard-kangaroo PrivKey Recovery Tool #]")
-	print("[#          based on code by 57fe 2019          #]")
+	print("[#    Pollard-kangaroo PrivKey Recovery Tool    #]")
+	print("[#            bitcoin ecdsa secp256k1           #]")
+	#print("[#          based on code by 57fe 2019          #]")
 	print("[#                  singlecore                  #]");
 	#print("[#                  multicore                   #]");
 	print("[#                    ver%04s                   #]"%version);
@@ -1053,7 +1057,7 @@ if __name__ == '__main__':
 		printstr += '  '
 		print(printstr)
 		#print('[runtime]%s' % time_format(runtime))
-		print('[runtime]%s' % time_format(runtime, (0,0,1,1,1,1,0,0)))
+		print('[runtime]%s' % time_format(runtime, (1,1,1,1,1,1,0,0)))
 
 
 	print("[################################################]")
@@ -1069,7 +1073,7 @@ if __name__ == '__main__':
 		#print('[(avg)jump] %s ' % (int(avgJump) if avgJump<10**3 else prefSI(avgJump)) )
 		##print('[(avg)jum2] %.1f +/- %.1f' % (avgJump, (D/(len(list_runjump)-1))**0.5) )
 		#print('[(avg)dpkg] %s ' % (int(avgDPkg) if avgDPkg<10**3 else prefSI(avgDPkg)) )
-		#print('[(avg)time]%s' % time_format(avgTime, (0,0,1,1,1,1,1,0)) )
+		#print('[(avg)time]%s' % time_format(avgTime, (1,1,1,1,1,1,1,0)) )
 
 		print("[averages] expected of 2w^(1/2) group operations")
 		print("-------|--------/--------|---------------------------------/---------------------------------|")
@@ -1078,7 +1082,7 @@ if __name__ == '__main__':
 		if 1:
 			i = pow2W
 			xi = 1
-			print('%s2^%03d |  %06s/ %06s |%030s /%030s |' % 
+			print('%s2^%03d |  %06s/ %06s |%032s /%032s |' % 
 					(	'>' if i==pow2W else ' '
 						,i
 						,int(avgJump) if int(avgJump*xi)<10**3 else prefSI(avgJump*xi)
@@ -1112,7 +1116,7 @@ if __name__ == '__main__':
 		print("-------|--------/--------|---------------------------------/---------------------------------|")
 		for i in xrange(bitMin,pow2W):
 			xi = ((2**i)**0.5) / Wsqrt
-			print('%s2^%03d |  %06s/ %06s |%030s /%030s |' % 
+			print('%s2^%03d |  %06s/ %06s |%032s /%032s |' % 
 					(	' '
 						,i
 						,int(avgJump*xi) if int(avgJump*xi)<10**3 else prefSI(avgJump*xi)
@@ -1123,7 +1127,7 @@ if __name__ == '__main__':
 			)
 		for i in xrange(pow2W,bitMax+1):
 			xi = ((2**i)**0.5) / Wsqrt
-			print('%s2^%03d |  %06s/ %06s |%030s /%030s |' % 
+			print('%s2^%03d |  %06s/ %06s |%032s /%032s |' % 
 					(	'>' if i==pow2W else ' '
 						,i
 						,int(avgJump*xi) if int(avgJump*xi)<10**3 else prefSI(avgJump*xi)
