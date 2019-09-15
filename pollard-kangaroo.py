@@ -11,10 +11,9 @@ from __future__ import print_function
 
 pow2bits	= 32	# bits/suborder/exp key
 
-flag_profile	= "optimal"	# settings by Telariust ; x0.9 expected of 2w^(1/2) group operations
+flag_profile	= "standart"	# settings by Pollard; x1.0 expected of 2w^(1/2) group operations
 #flag_profile	= "by 57fe"	# settings by 57fe ; x1.3 expected of 2w^(1/2) group operations
-#flag_profile	= "standart"	# settings by Pollard, Oorschot, Wiener ; x3.0 expected of 2w^(1/2) group operations
-
+#flag_profile	= "debug"	# debug
 
 #######################
 # service setings
@@ -25,7 +24,7 @@ timeit_eachnewprvkey = True	# gen new privkey each loop?
 prngseed	= 0	# 0 for random, or any for replay results
 flag_debug	= 0	# 0, 1, 2
 
-version = '0.82'
+version = '0.83'
 
 # low order pubkeys
 # default_table (demo/debug)
@@ -401,6 +400,21 @@ def getPubkey(new_prvkey, flag_compress):
 	return new_pubkey
 
 
+# get pow2Jmax
+def getPow2Jmax(optimalmeanjumpsize):
+	if flag_debug > 1: 
+		print('[optimal_mean_jumpsize] %s' % optimalmeanjumpsize)
+	sumjumpsize = 0
+	for i in range(0,257):
+		sumjumpsize += 2**i
+		#sumjumpsize = (2**(i+1))-1
+		meanjumpsize = (sumjumpsize//(i+1))+1
+		if flag_debug > 1: 
+			print('[Njumps#%03d] mean_jumpsize = sumjumpsize/Njumps = %s/%s = %s' % ((i+1), sumjumpsize, (i+1), meanjumpsize ))
+		if meanjumpsize >= optimalmeanjumpsize: 
+			if flag_debug > 1: 
+				print('[i] pow2Jmax=%s (%s >= %s)' % (i+1, meanjumpsize, optimalmeanjumpsize))
+			return i+1
 
 
 #######################
@@ -408,32 +422,21 @@ def getPubkey(new_prvkey, flag_compress):
 
 def KANGAROOS():
 
-	# settings by Telariust
-	# x0.9 expected of 2w^(1/2) group operations
-	if flag_profile == "optimal":
-		# pow2 size herd T+W (number of kangaroos in T/W herd), affects max size jump, affects discriminator
+	# debug
+	if flag_profile == "debug":
 		pow2kang = 0
-
-		# HTmax,HWmax - max number of kangaroos in T/W herd
 		HTmax = HWmax = 2**pow2kang
 
 		# mean jumpsize
-		# from Pollard ".. The best choice of m (jump size) is (w^(1/2))/2 .."
-		#midJsize = Wsqrt/2 # m = w^(1/2)/2
-		# for N kangaroos
-		#midJsize = (HTmax+HWmax)*Wsqrt/4	# with N cpu is m = N(w^(1/2))/4
+		midJsize = (Wsqrt//2)+1
+		#midJsize = ((HTmax+HWmax)*Wsqrt//4)+1	# with N cpu is m = N(w^(1/2))/4
 
-		# max jumpsize is 2m
-		#maxJsize = int(2*midJsize)
-		maxJsize = Wsqrt*8	# x8 the fastest! empirically
-
-		# pow max jumpsize
-		pow2Jmax = int(math.log(maxJsize,2))+1
+		pow2Jmax = getPow2Jmax(midJsize)
+		sizeJmax = 2**pow2Jmax
 
 		range1 = M	# standart
 		range2 = 1	# 1 for T1+W1
 
-		# discriminator for filter added new distinguished points (ram economy)
 		pow2dp = ((pow2W - 2*pow2kang)//2)-2	# 
 		DP_rarity = 2**pow2dp
 
@@ -446,10 +449,8 @@ def KANGAROOS():
 		# HTmax,HWmax - max number of kangaroos in T/W herd
 		HTmax = HWmax = 2**pow2kang
 
-		# powmax jumpsize
 		pow2Jmax = (pow2W//2) + pow2kang	# by 57fe
-		# max jumpsize is 2m
-		maxJsize = 2**pow2Jmax
+		sizeJmax = 2**pow2Jmax
 
 		range1 = M	# standart
 		range2 = W	# by 57fe
@@ -458,8 +459,8 @@ def KANGAROOS():
 		pow2dp = ((pow2W - 2*pow2kang)//2)-2	# by 57fe
 		DP_rarity = 2**pow2dp
 
-	# settings by Pollard, Oorschot, Wiener
-	# x3 expected of 2w^(1/2) group operations
+	# settings by Pollard
+	# x1.0 expected of 2w^(1/2) group operations
 	#elif flag_profile ==  "standart":
 	else:
 		# pow2 size herd T+W (number of kangaroos in T/W herd), affects max size jump, affects discriminator
@@ -469,16 +470,13 @@ def KANGAROOS():
 		HTmax = HWmax = 2**pow2kang
 
 		# mean jumpsize
-		# from Pollard ".. The best choice of m (jump size) is (w^(1/2))/2 .."
-		#midJsize = Wsqrt/2 # m = w^(1/2)/2
+		# by Pollard ".. The best choice of m (mean jump size) is w^(1/2)/2 .."
+		midJsize = (Wsqrt//2)+1
 		# for N kangaroos
-		midJsize = (HTmax+HWmax)*Wsqrt/4	# with N cpu is m = N(w^(1/2))/4
+		#midJsize = ((HTmax+HWmax)*Wsqrt//4)+1	# with N cpu is m = N(w^(1/2))/4
 
-		# max jumpsize is 2m
-		maxJsize = int(2*midJsize)
-
-		# pow max jumpsize
-		pow2Jmax = int(math.log(maxJsize,2))+1
+		pow2Jmax = getPow2Jmax(midJsize)
+		sizeJmax = 2**pow2Jmax
 
 		range1 = M	# standart
 		range2 = 1	# 1 for T1+W1
@@ -492,7 +490,7 @@ def KANGAROOS():
 		print('[kangaroos] 2^%s = %s in Tame/Wild herd' % (pow2kang, 2**pow2kang))
 		if flag_debug > 0: 
 			print('[DP_rarity] 2^%s = %s' % (pow2dp, DP_rarity))
-			print('[max_Jsize] 2^%s = %s' % (pow2Jmax, maxJsize))
+			print('[size_Jmax] 2^%s = %s' % (pow2Jmax, sizeJmax))
 
 	# dt/dw - int, current jumpsize
 	# dT/dW - int, sum dt/dw as int, distance traveled
