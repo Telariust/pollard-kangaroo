@@ -13,10 +13,10 @@ pow2bits	= 32	# bits/suborder/exp key
 
 flag_profile	= "standart"	# settings by Pollard; x1.0 expected of 2w^(1/2) group operations
 #flag_profile	= "by 57fe"	# settings by 57fe ; x1.3 expected of 2w^(1/2) group operations
-#flag_profile	= "debug"	# debug
+#flag_profile	= "custom"	# debug
 
 #######################
-# service setings
+# service settings
 
 Ntimeit		= 10		# times for avg runtime
 timeit_eachnewprvkey = True	# gen new privkey each loop?
@@ -24,7 +24,7 @@ timeit_eachnewprvkey = True	# gen new privkey each loop?
 prngseed	= 0	# 0 for random, or any for replay results
 flag_debug	= 0	# 0, 1, 2
 
-version = '0.83'
+version = '0.84'
 
 # low order pubkeys
 # default_table (demo/debug)
@@ -118,6 +118,8 @@ else:
 #######################
 # secp256k1
 
+A_curve	= 0
+B_curve	= 7
 #modulo	= 2**256-2**32-2**9-2**8-2**7-2**6-2**4-1
 modulo	= 115792089237316195423570985008687907853269984665640564039457584007908834671663
 order	= 115792089237316195423570985008687907852837564279074904382605163141518161494337
@@ -131,6 +133,8 @@ Gy	= 326705100207588169780830851305070431844712733806592432759389043357573374824
 
 # python2+gmpy2 speed-up +8%
 if flag_gmpy2:
+	A_curve	= gmpy2.mpz(A_curve)
+	B_curve	= gmpy2.mpz(B_curve)
 	modulo	= gmpy2.mpz(modulo)
 	order	= gmpy2.mpz(order)
 	Gx	= gmpy2.mpz(Gx)
@@ -193,7 +197,7 @@ def invert(b, p=modulo):
 # Affine coordinates (X,Y,Z=1)
 
 # specific of python: x*x... more faster than x**2 !!!
-# ..so option "0S" (without pow2) more preferred
+# ..so option "0S" (without squaring) more preferred
 
 
 # A + A -> A (1I, 2M, 1S)
@@ -405,16 +409,32 @@ def getPow2Jmax(optimalmeanjumpsize):
 	if flag_debug > 1: 
 		print('[optimal_mean_jumpsize] %s' % optimalmeanjumpsize)
 	sumjumpsize = 0
-	for i in range(0,257):
-		sumjumpsize += 2**i
-		#sumjumpsize = (2**(i+1))-1
-		meanjumpsize = (sumjumpsize//(i+1))+1
+	for i in range(1,257):
+		sumjumpsize += 2**(i-1)
+		#sumjumpsize = (2**i)-1
+		meanjumpsize = (sumjumpsize//i)+1
 		if flag_debug > 1: 
-			print('[Njumps#%03d] mean_jumpsize = sumjumpsize/Njumps = %s/%s = %s' % ((i+1), sumjumpsize, (i+1), meanjumpsize ))
+			print('[Njumps#%03d] mean_jumpsize = sumjumpsize/Njumps = %s/%s = %s' % (i, sumjumpsize, i, meanjumpsize ))
 		if meanjumpsize >= optimalmeanjumpsize: 
 			if flag_debug > 1: 
-				print('[i] pow2Jmax=%s (%s >= %s)' % (i+1, meanjumpsize, optimalmeanjumpsize))
-			return i+1
+				print('[i] pow2Jmax=%s (%s >= %s)' % ((i-1), meanjumpsize, optimalmeanjumpsize))
+			return (i-1)
+
+
+# Checks whether the given point lies on the elliptic curve
+def is_on_curve(Xcoord,Ycoord, p=modulo):
+	# convert short->full:  a_full=0, b_full=a_short, c_full=b_short
+	# convert full->short:  a_short=b_full, b_short=c_full (if a_full!=0 - convert impossible!)
+
+	# short form Weierstrass cubic 
+	# a_short, b_short
+	# y^2 = x^3 + a*x + b over Fp
+        return ((Ycoord * Ycoord) - (Xcoord * Xcoord * Xcoord) - (A_curve * Xcoord) - B_curve) % p == 0
+
+	# full  form Weierstrass cubic 
+	# a_full, b_full, c_full
+	# y^2 = x^3 + a*x^2 + b*x + c over Fp
+        #return ((Ycoord * Ycoord) - (Xcoord * Xcoord * Xcoord) - (A_curve * Xcoord * Xcoord) - (B_curve * Xcoord) - C_curve) % p == 0
 
 
 #######################
@@ -423,7 +443,7 @@ def getPow2Jmax(optimalmeanjumpsize):
 def KANGAROOS():
 
 	# debug
-	if flag_profile == "debug":
+	if flag_profile == "custom":
 		pow2kang = 0
 		HTmax = HWmax = 2**pow2kang
 
@@ -432,7 +452,11 @@ def KANGAROOS():
 		#midJsize = ((HTmax+HWmax)*Wsqrt//4)+1	# with N cpu is m = N(w^(1/2))/4
 
 		pow2Jmax = getPow2Jmax(midJsize)
+		#if not pow2W % 2:	pow2Jmax -= 1
 		sizeJmax = 2**pow2Jmax
+
+		sizeJmax = Wsqrt*8
+		pow2Jmax = int(math.log(sizeJmax,2))+1
 
 		range1 = M	# standart
 		range2 = 1	# 1 for T1+W1
@@ -648,13 +672,17 @@ def KANGAROOS():
 						print("\r[error] dDW == dDT !!! (0x%x)"%dDW);exit(-1)
 
 			if prvkey: break
+
 			dT[k] += dt[k]
 			if (not flag_gmpy2) and flag_coincurve:
 				Tp[k] = PublicKey.combine_keys([Sp[pw], Tp[k]])
 			else:
 				Tp[k] = add_a(Sp[pw], Tp[k])
+
+
 		if prvkey: break
-			
+		
+
 		# Wild herd
 		for k in xrange(HWmax):
 			if flag_debug > 2: print('\r[debug] W%s=%s, %s repairs'%(HWmax,k+1,nWrepair))
@@ -717,52 +745,60 @@ def KANGAROOS():
 						print("\r[error] dDW == dDT !!! (0x%x)"%dDW);exit(-1)
 
 			if prvkey: break
+
 			dW[k] += dw[k]
 			if (not flag_gmpy2) and flag_coincurve:
 				Wp[k] = PublicKey.combine_keys([Sp[pw], Wp[k]])
 			else:
 				Wp[k] = add_a(Sp[pw], Wp[k])
-		#if prvkey: break
 
-		# info
-		t2 = t2_info = time.time()
-		if (flag_debug > 0 and (t2_info-t1_info)>10)  or prvkey:
-			printstr  = '\r[i] DP T%s+W%s=%s+%s=%s; dp/kgr=%.1f' % (
-					 HTmax,HWmax, len(DTp),len(DWp), len(DTp)+len(DWp), (len(DTp)+len(DWp))/(HTmax+HWmax)
-					)
-			printstr += ' '*60 if (HTmax==1 and HWmax==1) else '; %s/%s repairs %s' % (nTrepair,nWrepair,' '*45)
-			print(printstr)
-			t1_info = t2_info
-
-		# indicator, progress, time
-		#t2 = time.time()
-		if (t2-t1)>1  or prvkey:
-			printstr  = '\r[~] %s j/s' % prefSI((n_jump-last_jump)/(t2-t1))
-			#printstr += '; %sj of %sj %.1f%%' % (
-			printstr += '; %sj %.1f%%' % (
-					 n_jump if n_jump<10**3 else prefSI(n_jump)
-					#, 2*Wsqrt if 2*Wsqrt < 10**3 else prefSI(2*Wsqrt)
-					, (1.0*n_jump/(2*Wsqrt))*100
-					)
-			if 1 or flag_debug < 1: 
-				printstr += '; dp/kgr=%.1f' % ( 1.0*(len(DTp)+len(DWp))/(HTmax+HWmax) )
-			printstr += '; [%s ' % ( time_format(t2-t0, (1,1,1,1,1,1,0,0)) )
-			printstr += 'lost_TIME_left'
-			timeleft = (t2-t0)*(1-(1.0*n_jump/(2*Wsqrt)))/(1.0*n_jump/(2*Wsqrt))
-			if timeleft > 0:
-				printstr += '%s ]  ' % ( time_format(timeleft, (1,1,1,1,1,1,0,0)) )
-			else:
-				printstr += '%s ]  ' % ( time_format(0, (1,1,1,1,1,1,0,0)) )
-			if sys.version_info[0] == 2:
-				print(printstr, end='')
-				sys.stdout.flush()
-			else:
-				print(printstr, end=''
-				, flush=True )
-			t1 = t2
-			last_jump = n_jump
 
 		if prvkey: break
+
+
+		if not (n_jump % 5000):
+			t2 = t2_info = time.time()
+
+			# info
+			if (flag_debug > 0 and (t2_info-t1_info)>10)  or prvkey:
+				printstr  = '\r[i] DP T%s+W%s=%s+%s=%s; dp/kgr=%.1f' % (
+						 HTmax,HWmax, len(DTp),len(DWp), len(DTp)+len(DWp), (len(DTp)+len(DWp))/(HTmax+HWmax)
+						)
+				printstr += ' '*60 if (HTmax==1 and HWmax==1) else '; %s/%s repairs %s' % (nTrepair,nWrepair,' '*45)
+				print(printstr)
+				t1_info = t2_info
+
+			# indicator, progress, time
+			#t2 = time.time()
+			if (t2-t1)>1  or prvkey:
+				if t2-t1 != 0:
+					printstr  = '\r[~] %s j/s' % prefSI((n_jump-last_jump)/(t2-t1))
+				else:
+					printstr  = '\r[~] %s j/s' % prefSI((n_jump-last_jump)/1)
+				#printstr += '; %sj of %sj %.1f%%' % (
+				printstr += '; %sj %.1f%%' % (
+						 n_jump if n_jump<10**3 else prefSI(n_jump)
+						#, 2*Wsqrt if 2*Wsqrt < 10**3 else prefSI(2*Wsqrt)
+						, (1.0*n_jump/(2*Wsqrt))*100
+						)
+				if 1 or flag_debug < 1: 
+					printstr += '; dp/kgr=%.1f' % ( 1.0*(len(DTp)+len(DWp))/(HTmax+HWmax) )
+				printstr += '; [%s ' % ( time_format(t2-t0, (1,1,1,1,1,1,0,0)) )
+				printstr += 'lost_TIME_left'
+				timeleft = (t2-t0)*(1-(1.0*n_jump/(2*Wsqrt)))/(1.0*n_jump/(2*Wsqrt))
+				if timeleft > 0:
+					printstr += '%s ]  ' % ( time_format(timeleft, (1,1,1,1,1,1,0,0)) )
+				else:
+					printstr += '%s ]  ' % ( time_format(0, (1,1,1,1,1,1,0,0)) )
+				if sys.version_info[0] == 2:
+					print(printstr, end='')
+					sys.stdout.flush()
+				else:
+					print(printstr, end=''
+					, flush=True )
+				t1 = t2
+				last_jump = n_jump
+
 
 	return prvkey, n_jump, (time.time()-t0), len(DTp),len(DWp), HTmax,HWmax, nTrepair,nWrepair
 
@@ -818,7 +854,7 @@ if __name__ == '__main__':
 	prvkey0 = False
 	pubkey0 = False
 
-	bitMin = 10
+	bitMin = 8
 	bitMax = 120
 
 	if len(sys.argv) > 1 :
@@ -837,7 +873,7 @@ if __name__ == '__main__':
 			L = int(str(L), 16)
 			U = int(str(U), 16)
 			assert(len(sys.argv)>2)
-			bitMin = 10
+			bitMin = 8
 			bitMax = 256
 		except:
 			flag_keyspace = False
@@ -994,6 +1030,10 @@ if __name__ == '__main__':
 			print("[Ycoordinate] %064x" % Y)
 			#print("[~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~]")
 
+			if not is_on_curve(X,Y):
+				print("[error] the given point not lies on the elliptic curve!")
+				usage()
+			
 			# wild root
 			if (not flag_gmpy2) and flag_coincurve:
 				W0p = PublicKey.from_point(X,Y)
@@ -1045,7 +1085,7 @@ if __name__ == '__main__':
 		
 		# finish stat
 		printstr = '[i] %s j/s; %sj of %sj %.1f%%; DP T%s+W%s=%s+%s=%s; dp/kgr=%.1f' % (
-			 prefSI(runjump/runtime)
+			 prefSI(runjump/1) if runtime==0 else prefSI(runjump/runtime)
 			, runjump if runjump<10**3 else prefSI(runjump)
 			, 2*Wsqrt if 2*Wsqrt < 10**3 else prefSI(2*Wsqrt)
 			, (1.0*runjump/(2*Wsqrt))*100
