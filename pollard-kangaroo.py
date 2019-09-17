@@ -11,20 +11,21 @@ from __future__ import print_function
 
 pow2bits	= 32	# bits/suborder/exp key
 
-flag_profile	= "standart"	# settings by Pollard; x1.0 expected of 2w^(1/2) group operations
-#flag_profile	= "by 57fe"	# settings by 57fe ; x1.3 expected of 2w^(1/2) group operations
-#flag_profile	= "custom"	# debug
-
-#######################
-# service settings
 
 Ntimeit		= 10		# times for avg runtime
 timeit_eachnewprvkey = True	# gen new privkey each loop?
 
+
+#######################
+# service settings
+
+flag_profile	= "standart"	# settings by Pollard; x1.0 expected of 2w^(1/2) group operations
+#flag_profile	= "custom"	# debug
+
 prngseed	= 0	# 0 for random, or any for replay results
 flag_debug	= 0	# 0, 1, 2
 
-version = '0.84'
+version = '0.9'
 
 # low order pubkeys
 # default_table (demo/debug)
@@ -167,14 +168,6 @@ def egcd(a, b):
 		g, x, y = egcd(b % a, a)
 		return (g, y - (b // a) * x, x)
 
-# from 57fe origin script
-def invert_old(b, p=modulo):
-	while b < 0:
-		b += p
-	g, x, _ = egcd(b, p)
-	if g == 1:
-		return x % p
-
 
 # from arulberoECC library
 # more fastest
@@ -209,7 +202,6 @@ def add_a(A, B, p=modulo):
 	if flag_gmpy2:
 		c = dy * gmpy2.invert(dx, p) % p	# 1I,1M
 	else:
-		#c = dy * invert_old(dx, p) % p		# old invert
 		c = dy * invert(dx, p) % p		# 1I,1M
 
 	#R.x = (c**2 - A.x - B.x) % p	# 0M,1S
@@ -228,7 +220,6 @@ def mul_2a(A, p=modulo):
 		#c = 3 * A.x**2 * gmpy2.invert(2*A.y, p) % p	# 1I,3M,1S
 		c = 3 * A.x * A.x * gmpy2.invert(2*A.y, p) % p	# 1I,4M,0S
 	else:
-		#c = 3 * A.x**2 * invert_old(2*A.y, p) % p	# old invert
 		#c = 3 * A.x**2 * invert(2*A.y, p) % p		# 1I,3M,1S
 		c = 3 * A.x * A.x * invert(2*A.y, p) % p	# 1I,4M,0S
 
@@ -444,222 +435,109 @@ def KANGAROOS():
 
 	# debug
 	if flag_profile == "custom":
-		pow2kang = 0
-		HTmax = HWmax = 2**pow2kang
 
-		# mean jumpsize
 		midJsize = (Wsqrt//2)+1
-		#midJsize = ((HTmax+HWmax)*Wsqrt//4)+1	# with N cpu is m = N(w^(1/2))/4
 
 		pow2Jmax = getPow2Jmax(midJsize)
-		#if not pow2W % 2:	pow2Jmax -= 1
 		sizeJmax = 2**pow2Jmax
 
-		sizeJmax = Wsqrt*8
-		pow2Jmax = int(math.log(sizeJmax,2))+1
+		#sizeJmax = Wsqrt*8
+		#pow2Jmax = int(math.log(sizeJmax,2))+1
 
-		range1 = M	# standart
-		range2 = 1	# 1 for T1+W1
-
-		pow2dp = ((pow2W - 2*pow2kang)//2)-2	# 
-		DP_rarity = 2**pow2dp
-
-	# settings by 57fe
-	# x1.3 expected of 2w^(1/2) group operations
-	elif flag_profile ==  "by 57fe":
-		# pow2 size herd T+W (number of kangaroos in T/W herd), affects max size jump, affects discriminator
-		pow2kang = 3
-
-		# HTmax,HWmax - max number of kangaroos in T/W herd
-		HTmax = HWmax = 2**pow2kang
-
-		pow2Jmax = (pow2W//2) + pow2kang	# by 57fe
-		sizeJmax = 2**pow2Jmax
-
-		range1 = M	# standart
-		range2 = W	# by 57fe
-
-		# discriminator for filter added new distinguished points (ram economy)
-		pow2dp = ((pow2W - 2*pow2kang)//2)-2	# by 57fe
-		DP_rarity = 2**pow2dp
+		pow2dp = (pow2W//2)-2	# 
+		DPmodule = 2**pow2dp
 
 	# settings by Pollard
-	# x1.0 expected of 2w^(1/2) group operations
+	# expected of 2w^(1/2) group operations
 	#elif flag_profile ==  "standart":
 	else:
-		# pow2 size herd T+W (number of kangaroos in T/W herd), affects max size jump, affects discriminator
-		pow2kang = 0
-
-		# HTmax,HWmax - max number of kangaroos in T/W herd
-		HTmax = HWmax = 2**pow2kang
-
 		# mean jumpsize
 		# by Pollard ".. The best choice of m (mean jump size) is w^(1/2)/2 .."
 		midJsize = (Wsqrt//2)+1
-		# for N kangaroos
-		#midJsize = ((HTmax+HWmax)*Wsqrt//4)+1	# with N cpu is m = N(w^(1/2))/4
 
 		pow2Jmax = getPow2Jmax(midJsize)
 		sizeJmax = 2**pow2Jmax
 
-		range1 = M	# standart
-		range2 = 1	# 1 for T1+W1
-
 		# discriminator for filter added new distinguished points (ram economy)
-		pow2dp = ((pow2W - 2*pow2kang)//2)-2	# 
-		DP_rarity = 2**pow2dp
+		pow2dp = (pow2W//2)-2	# 
+		DPmodule = 2**pow2dp
 
 
 	if flag_debug > 0: 
-		print('[kangaroos] 2^%s = %s in Tame/Wild herd' % (pow2kang, 2**pow2kang))
 		if flag_debug > 0: 
-			print('[DP_rarity] 2^%s = %s' % (pow2dp, DP_rarity))
-			print('[size_Jmax] 2^%s = %s' % (pow2Jmax, sizeJmax))
+			print('[DPmodule] 2^%s = %s' % (pow2dp, DPmodule))
+			print('[sizeJmax] 2^%s = %s' % (pow2Jmax, sizeJmax))
 
-	# dt/dw - int, current jumpsize
-	# dT/dW - int, sum dt/dw as int, distance traveled
-	# Tp/Wp - point, sum dt/dw as points, distance traveled
-	Tp, dT, dt = list(), list(), list()
-	Wp, dW, dw = list(), list(), list()
+	# dT/dW - int, sum distance traveled
+	dT = dW = 0
+
+	# Tp/Wp - point, sum distance traveled
+	Tp = Wp = False
 
 	# generate random start points
-	if flag_pow2bits:
-		#if flag_debug > 1:	print('dT[k] (3/4)*(2^bits) + rng((1/2)*(2^bits))')	# by 57fe
-		#if flag_debug > 1:	print('dT[k] (3/4)*(2^bits) + rng(?)')	# M + rng(?)
-		pass
-	if flag_keyspace:
-		# M == L+(W/2) == (L+U)/2
-		#if flag_debug > 1:	print('dT[k] M + rng(1, W)')	# by 57fe
-		#if flag_debug > 1:	print('dT[k] M + rng(?)')	# M + rng(?)
-		pass
 
-	# Tame herd
-	for k in xrange(HTmax):
-		if flag_pow2bits:
-			#dT.append((3<<(pow2bits-2)) + random.randint(1,(2**(pow2bits-1))))	# by 57fe
-			dT.append( range1 + random.randint(1, range2))	# ? + ?
-		if flag_keyspace:
-			#dT.append( M + random.randint(1, W))	# by 57fe
-			dT.append( range1 + random.randint(1, range2))	# ? + ?
-		if (not flag_gmpy2) and flag_coincurve:
-			Tp.append(Gp.multiply(int_to_bytes(dT[k])))
-		else:
-			Tp.append(mul_ka(dT[k]))
-
-		dt.append(0)
-
-		#if flag_debug > 1:	print('dT[%s] 0x%x + rng(1,0x%x) = 0x%x' % (k+1, 3<<(pow2bits-2), 2**(pow2bits-1), dT[k]))	# by 57fe
-		#if flag_debug > 1:	print('dT[%s] 0x%x + rng(1,0x%x) = 0x%x' % (k+1, M, W, dT[k]))	# by 57fe
-		if flag_debug > 1:	print('dT[%s] 0x%064x' % (k+1, dT[k]))
-
-		#location in keyspace on the strip
-		if flag_debug > 0 and (not (HTmax==1 and HWmax==1)):	
-				len100perc = 56
-				size1perc = W//len100perc
-				percKey = (dT[k]-M)//size1perc
-				print('dT[%s] [(3/4)2^%s|%s%s%s|2^%s|%s%s%s|(5/4)2^%s]' % (k+1
-					, pow2U
-					, '-'*( percKey if percKey in range(0,len100perc//2) else len100perc//2 )
-					, ( 'T' if percKey in range(0,len100perc//2) else '-' )
-					, '-'*( (len100perc//2)-percKey if percKey in range(0,len100perc//2) else 0 )
-					, pow2U
-					, '-'*( percKey-(len100perc//2) if percKey in range(len100perc//2,len100perc) else len100perc//2 )
-					, ( 'T' if percKey in range(len100perc//2,len100perc) else '-' )
-					, '-'*( len100perc-percKey if percKey in range(len100perc//2,len100perc) else 0 )
-					, pow2U
-					)
-				);#exit(1)
-	# Wild herd
-	for k in xrange(HWmax):
-		if flag_pow2bits:
-			#dW.append(random.randint(1, (1<<(pow2bits-1))))	# by 57fe
-			dW.append(random.randint(1, range2))	# ? + ?
-		if flag_keyspace:
-			#dW.append(random.randint(1, W))			# by 57fe
-			dW.append(random.randint(1, range2))	# ? + ?
+	# Tame
+	if 1:
+		#dT = (3<<(pow2bits-2)) + random.randint(1,(2**(pow2bits-1)))	# by 57fe
+		dT = M	# by Pollard
+		if not (dT%2):	dT += 1; # T odd recommended
 
 		if (not flag_gmpy2) and flag_coincurve:
-			Wp.append(PublicKey.combine_keys([W0p,Gp.multiply(int_to_bytes(dW[k]))]))
+			Tp = Gp.multiply(int_to_bytes(dT))
 		else:
-			Wp.append(add_a(W0p,mul_ka(dW[k])))
+			Tp = mul_ka(dT)
 
-		dw.append(0)
+		if flag_debug > 1:	print('dT 0x%064x' % (dT))
 
-		#if flag_debug > 1:	print('dW[%s] 0x%x + rng(1,0x%x) = 0x%x' % (k+1, 3<<(pow2bits-2), 2**(pow2bits-1), dW[k]))	# by 57fe
-		#if flag_debug > 1:	print('dW[%s] 0x%x + rng(1,0x%x) = 0x%x' % (k+1, M, W, dW[k]))	# by 57fe
-		if flag_debug > 1:	print('dW[%s] 0x%064x' % (k+1, dW[k]))
+	# Wild
+	if 1:
+		#dW = random.randint(1, (1<<(pow2bits-1)))	# by 57fe
+		dW = 1	# by Pollard
+
+		if (not flag_gmpy2) and flag_coincurve:
+			Wp = PublicKey.combine_keys([W0p,Gp.multiply(int_to_bytes(dW))])
+		else:
+			Wp = add_a(W0p,mul_ka(dW))
+
+		if flag_debug > 1:	print('dW 0x%064x' % (dW))
 
 
-	#print('[kangaroos] 2^%s = %s in Tame/Wild herd' % (pow2kang, 2**pow2kang))
-	print('[+] T%s+W%s herds - ready' % (HTmax,HWmax))
-	#exit(1)
+	print('[+] T+W - ready')
+
 
 	# DTp/DWp - points, distinguished of Tp/Wp
 	DTp, DWp = dict(), dict() # dict is hashtable of python, provides uniqueness distinguished points
 
 	t0 = t1 = t2 = t1_info = t2_info = time.time()
-	n_jump = last_jump = n_loop = 0
+	n_jump = last_jump = 0
 	prvkey = False;
-
-	pow2repair = 0 # for fix same sequences
-	nTrepair = nWrepair = 0
 
 	# main loop
 	while (1):
-		n_loop += 1
-		if flag_debug > 2: 
-			print('\r[debug] %s loops; %s jumps' % (n_loop, n_jump))
 		
-		# Tame herd
-		for k in xrange(HTmax):
-			if flag_debug > 2: print('\r[debug] T%s=%s, %s repairs' % (HTmax,k+1,nTrepair))
+		# Tame
+		if 1:
 			n_jump += 1
 
 			# Xcoord
-			Xcoord = getXcoord(Tp[k])
+			Xcoord = getXcoord(Tp)
 
 			pw = Xcoord % pow2Jmax
 			pw = int(pw)
-			dt[k] = 1<<pw
+			nowjumpsize = 1<<pw
 
 			# check, is it distinguished point?
-			if Xcoord % DP_rarity == 0:
-				# uniqueness?
-				while(1):
-					try:
-						DTp[Xcoord]
-					except:
-						break
-					else:
-						# repeat detected!
-						nTrepair += 1
-						if flag_debug > 0: 
-							print('\r[tame#%s] repair: 0x%064x' % (k+1,Xcoord));
-						# need fix same sequences
-						dT[k] += 1<<pow2repair
-						
-						if (not flag_gmpy2) and flag_coincurve:
-							Tp[k] = PublicKey.combine_keys([Sp[pow2repair], Tp[k]])
-						else:
-							Tp[k] = add_a(Sp[pow2repair], Tp[k])
-
-						# Xcoord
-						Xcoord = getXcoord(Tp[k])
-
-						pw = Xcoord % pow2Jmax
-						pw = int(pw)
-						dt[k] = 1<<pw
+			if Xcoord % DPmodule == 0:
 
 				# add new distinguished point
-				DTp[Xcoord] = dT[k]
+				DTp[Xcoord] = dT
 
 				if flag_debug > 1: 
-					printstr  = '\r[tame] T%s/W%s=%s/%s' % (HTmax,HWmax, len(DTp),len(DWp))
-					printstr += '' if (HTmax==1 and HWmax==1) else '; %s/%s repairs' % (nTrepair,nWrepair)
-					printstr += '; %064x 0x%x' % (Xcoord,dT[k])
+					printstr  = '\r[tame] T+W=%s+%s=%s' % (len(DTp),len(DWp),len(DTp)+len(DWp))
+					printstr += '; %064x 0x%x' % (Xcoord,dT)
 					print(printstr)
-					save2file('tame.txt', 'a', '%064x %s\n'%(Xcoord,dT[k]) )
-				# compare distinguished points, Tame herd & Wild herd
+					save2file('tame.txt', 'a', '%064x %s\n'%(Xcoord,dT) )
+				# compare distinguished points, Tame & Wild
 				compare = list(set(DTp) & set(DWp))
 				if len(compare) > 0: 
 					dDT = DTp[compare[0]]
@@ -673,66 +551,39 @@ def KANGAROOS():
 
 			if prvkey: break
 
-			dT[k] += dt[k]
+			dT += nowjumpsize
 			if (not flag_gmpy2) and flag_coincurve:
-				Tp[k] = PublicKey.combine_keys([Sp[pw], Tp[k]])
+				Tp = PublicKey.combine_keys([Tp, Sp[pw]])
 			else:
-				Tp[k] = add_a(Sp[pw], Tp[k])
+				Tp = add_a(Tp, Sp[pw])
 
 
 		if prvkey: break
 		
 
-		# Wild herd
-		for k in xrange(HWmax):
-			if flag_debug > 2: print('\r[debug] W%s=%s, %s repairs'%(HWmax,k+1,nWrepair))
+		# Wild
+		if 1:
 			n_jump += 1
 
 			# Xcoord
-			Xcoord = getXcoord(Wp[k])
+			Xcoord = getXcoord(Wp)
 
 			pw = Xcoord % pow2Jmax
 			pw = int(pw)
-			dw[k] = 1<<pw
+			nowjumpsize = 1<<pw
 
 			# add new distinguished point
-			if Xcoord % DP_rarity == 0:
-				# uniqueness?
-				while(1):
-					try:
-						DWp[Xcoord]
-					except:
-						break
-					else:
-						# repeat detected!
-						nWrepair += 1
-						if flag_debug > 0: 
-							print('\r[wild#%s] repair: 0x%064x' % (k+1,Xcoord));
-						# need fix same sequences
-						dW[k] += 1<<pow2repair
-
-						if (not flag_gmpy2) and flag_coincurve:
-							Wp[k] = PublicKey.combine_keys([Sp[pow2repair], Wp[k]])
-						else:
-							Wp[k] = add_a(Sp[pow2repair], Wp[k])
-						
-						# Xcoord
-						Xcoord = getXcoord(Wp[k])
-
-						pw = Xcoord % pow2Jmax
-						pw = int(pw)
-						dw[k] = 1<<pw
+			if Xcoord % DPmodule == 0:
 
 				# add new distinguished point
-				DWp[Xcoord] = dW[k]
+				DWp[Xcoord] = dW
 
 				if flag_debug > 1: 
-					printstr  = '\r[wild] T%s/W%s=%s/%s' % (HTmax,HWmax, len(DTp),len(DWp))
-					printstr += '' if (HTmax==1 and HWmax==1) else '; %s/%s repairs' % (nTrepair,nWrepair)
-					printstr += '; %064x 0x%x' % (Xcoord,dW[k])
+					printstr  = '\r[wild] T+W=%s+%s=%s' % (len(DTp),len(DWp),len(DTp)+len(DWp))
+					printstr += '; %064x 0x%x' % (Xcoord,dW)
 					print(printstr)
-					save2file('wild.txt', 'a', '%064x %s\n'%(Xcoord,dW[k]) )
-				# compare distinguished points, Tame herd & Wild herd
+					save2file('wild.txt', 'a', '%064x %s\n'%(Xcoord,dW) )
+				# compare distinguished points, Tame & Wild
 				compare = list(set(DTp) & set(DWp))
 				if len(compare) > 0: 
 					dDT = DTp[compare[0]]
@@ -746,35 +597,37 @@ def KANGAROOS():
 
 			if prvkey: break
 
-			dW[k] += dw[k]
+			dW += nowjumpsize
 			if (not flag_gmpy2) and flag_coincurve:
-				Wp[k] = PublicKey.combine_keys([Sp[pw], Wp[k]])
+				Wp = PublicKey.combine_keys([Wp, Sp[pw]])
 			else:
-				Wp[k] = add_a(Sp[pw], Wp[k])
+				Wp = add_a(Wp, Sp[pw])
 
 
 		if prvkey: break
 
 
 		if not (n_jump % 5000):
+
 			t2 = t2_info = time.time()
 
 			# info
 			if (flag_debug > 0 and (t2_info-t1_info)>10)  or prvkey:
-				printstr  = '\r[i] DP T%s+W%s=%s+%s=%s; dp/kgr=%.1f' % (
-						 HTmax,HWmax, len(DTp),len(DWp), len(DTp)+len(DWp), (len(DTp)+len(DWp))/(HTmax+HWmax)
+				printstr  = '\r[i] DP T+W=%s+%s=%s; dp/kgr=%.1f' % (
+						 len(DTp),len(DWp), len(DTp)+len(DWp), 1.0*(len(DTp)+len(DWp))/2
 						)
-				printstr += ' '*60 if (HTmax==1 and HWmax==1) else '; %s/%s repairs %s' % (nTrepair,nWrepair,' '*45)
+				printstr += ' '*60
 				print(printstr)
 				t1_info = t2_info
 
 			# indicator, progress, time
-			#t2 = time.time()
 			if (t2-t1)>1  or prvkey:
+				printstr  = '\r'
+				printstr += '[%s ' % ( time_format(t2-t0, (1,1,1,1,1,1,0,0)) )
 				if t2-t1 != 0:
-					printstr  = '\r[~] %s j/s' % prefSI((n_jump-last_jump)/(t2-t1))
+					printstr += '; %s j/s' % prefSI((n_jump-last_jump)/(t2-t1))
 				else:
-					printstr  = '\r[~] %s j/s' % prefSI((n_jump-last_jump)/1)
+					printstr += '; %s j/s' % prefSI((n_jump-last_jump)/0.001)
 				#printstr += '; %sj of %sj %.1f%%' % (
 				printstr += '; %sj %.1f%%' % (
 						 n_jump if n_jump<10**3 else prefSI(n_jump)
@@ -782,14 +635,13 @@ def KANGAROOS():
 						, (1.0*n_jump/(2*Wsqrt))*100
 						)
 				if 1 or flag_debug < 1: 
-					printstr += '; dp/kgr=%.1f' % ( 1.0*(len(DTp)+len(DWp))/(HTmax+HWmax) )
-				printstr += '; [%s ' % ( time_format(t2-t0, (1,1,1,1,1,1,0,0)) )
-				printstr += 'lost_TIME_left'
+					printstr += '; dp/kgr=%.1f' % ( 1.0*(len(DTp)+len(DWp))/2 )
+				#printstr += 'lost_TIME_left'
 				timeleft = (t2-t0)*(1-(1.0*n_jump/(2*Wsqrt)))/(1.0*n_jump/(2*Wsqrt))
 				if timeleft > 0:
-					printstr += '%s ]  ' % ( time_format(timeleft, (1,1,1,1,1,1,0,0)) )
+					printstr += ';%s ]  ' % ( time_format(timeleft, (1,1,1,1,1,1,0,0)) )
 				else:
-					printstr += '%s ]  ' % ( time_format(0, (1,1,1,1,1,1,0,0)) )
+					printstr += ';%s ]  ' % ( time_format(0, (1,1,1,1,1,1,0,0)) )
 				if sys.version_info[0] == 2:
 					print(printstr, end='')
 					sys.stdout.flush()
@@ -800,7 +652,7 @@ def KANGAROOS():
 				last_jump = n_jump
 
 
-	return prvkey, n_jump, (time.time()-t0), len(DTp),len(DWp), HTmax,HWmax, nTrepair,nWrepair
+	return prvkey, n_jump, (time.time()-t0), len(DTp),len(DWp)
 
 
 #######################
@@ -927,6 +779,7 @@ if __name__ == '__main__':
 		except:
 			usage()
 
+		# M == (L+U)/2 == L+(W/2)
 		#M = (L + U)//2
 		M = L + (W//2)
 
@@ -1042,12 +895,12 @@ if __name__ == '__main__':
 
 
 		# call KANGAROOS()
-		prvkey, runjump, runtime, lenT,lenW, HTmax,HWmax, nTrepair,nWrepair = KANGAROOS()
+		prvkey, runjump, runtime, lenT,lenW = KANGAROOS()
 
 		# save stat for avg
 		list_runjump.append(runjump)
 		list_runtime.append(runtime)
-		list_dpkgr.append(1.0*(lenT+lenW)/(HTmax+HWmax))
+		list_dpkgr.append(1.0*(lenT+lenW)/2)
 		
 		print('')
 		print('[prvkey#%s] 0x%064x' % (pow2bits,prvkey) )
@@ -1084,14 +937,13 @@ if __name__ == '__main__':
 				);#exit(1)
 		
 		# finish stat
-		printstr = '[i] %s j/s; %sj of %sj %.1f%%; DP T%s+W%s=%s+%s=%s; dp/kgr=%.1f' % (
+		printstr = '[i] %s j/s; %sj of %sj %.1f%%; DP T+W=%s+%s=%s; dp/kgr=%.1f' % (
 			 prefSI(runjump/1) if runtime==0 else prefSI(runjump/runtime)
 			, runjump if runjump<10**3 else prefSI(runjump)
 			, 2*Wsqrt if 2*Wsqrt < 10**3 else prefSI(2*Wsqrt)
 			, (1.0*runjump/(2*Wsqrt))*100
-			, HTmax,HWmax, lenT,lenW, lenT+lenW, 1.0*(lenT+lenW)/(HTmax+HWmax)
+			, lenT,lenW, lenT+lenW, 1.0*(lenT+lenW)/2
 			)
-		printstr += '' if (HTmax==1 and HWmax==1) else '; %s/%s repairs' % (nTrepair,nWrepair)
 		printstr += '  '
 		print(printstr)
 		#print('[runtime]%s' % time_format(runtime))
