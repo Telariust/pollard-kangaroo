@@ -25,7 +25,7 @@ flag_profile	= "standart"	# settings by Pollard; x1.0 expected of 2w^(1/2) group
 prngseed	= 0	# 0 for random, or any for replay results
 flag_debug	= 0	# 0, 1, 2
 
-version = '0.9'
+version = '0.91'
 
 # low order pubkeys
 # default_table (demo/debug)
@@ -160,14 +160,6 @@ else:
 #######################
 # math, raw python
 
-# return (g, x, y) a*x + b*y = gcd(x, y)
-def egcd(a, b):
-	if a == 0:
-		return (b, 0, 1)
-	else:
-		g, x, y = egcd(b % a, a)
-		return (g, y - (b // a) * x, x)
-
 
 # from arulberoECC library
 # more fastest
@@ -214,17 +206,25 @@ def add_a(A, B, p=modulo):
 
 # 2 * A -> A (1I, 5M, 2S)
 # 2 * A -> A (1I, 7M, 0S)
+# 2 * A -> A (1I, 4M, 0S)
 def mul_2a(A, p=modulo):
 	R = Point()
 	if flag_gmpy2:
 		#c = 3 * A.x**2 * gmpy2.invert(2*A.y, p) % p	# 1I,3M,1S
-		c = 3 * A.x * A.x * gmpy2.invert(2*A.y, p) % p	# 1I,4M,0S
+		#c = 3 * A.x * A.x * gmpy2.invert(2*A.y, p) % p	# 1I,4M,0S
+
+		c1 = A.x * A.x * gmpy2.invert(A.y+A.y, p) 	# 1I,2M,0S
+		c = (c1 + c1 + c1) % p;
 	else:
 		#c = 3 * A.x**2 * invert(2*A.y, p) % p		# 1I,3M,1S
-		c = 3 * A.x * A.x * invert(2*A.y, p) % p	# 1I,4M,0S
+		#c = 3 * A.x * A.x * invert(2*A.y, p) % p	# 1I,4M,0S
+
+		c1 = A.x * A.x * invert(A.y+A.y, p)		# 1I,2M,0S
+		c = (c1 + c1 + c1) % p;
 
 	#R.x = (c**2 - 2*A.x) % p	# 1M,1S
-	R.x = (c*c - 2*A.x) % p		# 2M,0S
+	#R.x = (c*c - 2*A.x) % p	# 2M,0S
+	R.x = (c*c - A.x - A.x) % p	# 1M,0S
 
 	R.y = (c*(A.x - R.x) - A.y) % p	# 1M
 	return R
@@ -399,17 +399,31 @@ def getPubkey(new_prvkey, flag_compress):
 def getPow2Jmax(optimalmeanjumpsize):
 	if flag_debug > 1: 
 		print('[optimal_mean_jumpsize] %s' % optimalmeanjumpsize)
+
 	sumjumpsize = 0
-	for i in range(1,257):
-		sumjumpsize += 2**(i-1)
+
+	for i in range(1,256):
+
 		#sumjumpsize = (2**i)-1
-		meanjumpsize = (sumjumpsize//i)+1
+		sumjumpsize += 2**(i-1)
+
+		#meanjumpsize = (sumjumpsize//i)+1
+		#meanjumpsize = int(round(1.0*sumjumpsize/i))
+
+		#if flag_debug > 1: 
+		#	print('[Njumps#%03d] mean_jumpsize = sumjumpsize/Njumps = %s/%s = %s' % (i, sumjumpsize, i, meanjumpsize ))
+
+		now_meanjumpsize	= int(round(1.0*(sumjumpsize+0)/i))
+		next_meanjumpsize	= int(round(1.0*(sumjumpsize+2**i)/i))
+
 		if flag_debug > 1: 
-			print('[Njumps#%03d] mean_jumpsize = sumjumpsize/Njumps = %s/%s = %s' % (i, sumjumpsize, i, meanjumpsize ))
-		if meanjumpsize >= optimalmeanjumpsize: 
+			print('[meanjumpsize#%03dj] %s(now) <= %s(optimal) <= %s(next)' % (i, now_meanjumpsize, optimalmeanjumpsize, next_meanjumpsize ))
+
+		#if meanjumpsize >= optimalmeanjumpsize: 
+		if  optimalmeanjumpsize - now_meanjumpsize <= next_meanjumpsize - optimalmeanjumpsize : 
 			if flag_debug > 1: 
-				print('[i] pow2Jmax=%s (%s >= %s)' % ((i-1), meanjumpsize, optimalmeanjumpsize))
-			return (i-1)
+				print('[i] pow2Jmax=%s (%s nearer to optimal)' % (i, now_meanjumpsize))
+			return i
 
 
 # Checks whether the given point lies on the elliptic curve
@@ -436,13 +450,14 @@ def KANGAROOS():
 	# debug
 	if flag_profile == "custom":
 
-		midJsize = (Wsqrt//2)+1
+		#midJsize = (Wsqrt//2)+1
+		midJsize = int(round(1.0*Wsqrt/2))
 
 		pow2Jmax = getPow2Jmax(midJsize)
 		sizeJmax = 2**pow2Jmax
 
 		#sizeJmax = Wsqrt*8
-		#pow2Jmax = int(math.log(sizeJmax,2))+1
+		#pow2Jmax = int(round(math.log(sizeJmax,2)))
 
 		pow2dp = (pow2W//2)-2	# 
 		DPmodule = 2**pow2dp
@@ -453,7 +468,8 @@ def KANGAROOS():
 	else:
 		# mean jumpsize
 		# by Pollard ".. The best choice of m (mean jump size) is w^(1/2)/2 .."
-		midJsize = (Wsqrt//2)+1
+		#midJsize = (Wsqrt//2)+1
+		midJsize = int(round(1.0*Wsqrt/2))
 
 		pow2Jmax = getPow2Jmax(midJsize)
 		sizeJmax = 2**pow2Jmax
@@ -502,7 +518,7 @@ def KANGAROOS():
 		if flag_debug > 1:	print('dW 0x%064x' % (dW))
 
 
-	print('[+] T+W - ready')
+	print('[+] T+W kangaroos - ready')
 
 
 	# DTp/DWp - points, distinguished of Tp/Wp
