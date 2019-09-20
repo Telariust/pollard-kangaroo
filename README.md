@@ -60,6 +60,7 @@ Python37>python -m pip install gmpy2-2.0.8-cp37-cp37m-win_amd64.whl
 
 # Benchmark libs
 Algo: 1 Tame + 1 Wild with distinguished points,  expected of 2w<sup>1/2</sup> group operations
+
 1core i5-2540, win7x64, python2x64
 ```
 [lib#raw]		 7.1K j/s
