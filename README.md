@@ -6,6 +6,30 @@ Runtime expected of 2w^(1/2) group operations.
 
 [11] P. C. van Oorschot and M. J. Wiener, Parallel collision search with cryptanalytic applications, J. Cryptology, #12 (1999)
 
+# About implementation
+
+python2/3, ready:
+ - singlecore
+ - python2/3 compatibility (print/time/input/xrange/IntDiv)
+ - auto adaptation under environment
+ - raw python/coincurve+cffi/gmpy2
+ - some checks, debug, more info, minor accelerate
+ - (un)compress/custom/random pubkey
+ - format time: 0y 0m 0d 00:00:00s 000ms
+ - format prefix SI: Kilo/Mega/Giga/Tera/Peta/Exa
+ - heuristic prognosis (avg)time and (avg)jump per bits
+ - repair kangaroos, that falls into the trap of same sequences
+ - location privkey in keyspace on the strip
+ - percent status progress, lost/left time
+ - support arbitrary range (keyspace) start:end
+
+expected in the future
+ - multicore
+
+more info
+https://bitcointalk.org/index.php?topic=5173445.msg52473992#msg52473992
+https://bitcointalk.org/index.php?topic=5166284.msg52318676#msg52318676
+
 # How pollard-kangaroo works, the Tame and Wild kangaroos, is a simple explanation.
 
 Suppose there is pubkeyX, unknow privkeyX, but privkeyX is in range w=[L..U]
