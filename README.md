@@ -8,7 +8,7 @@ Runtime expected of 2w<sup>1/2</sup> group operations.
 
 # Feature:
 
- - singlecore
+ - singlecore, multicore
  - python2/3 compatibility (print/time/input/xrange/IntDiv)
  - auto adaptation under environment
  - raw python/coincurve+cffi/gmpy2
@@ -23,33 +23,26 @@ Runtime expected of 2w<sup>1/2</sup> group operations.
  - support arbitrary range (keyspace) start:end
 
 Expected in the future
- - multicore
- - precision S(i) set without problem of odd of pow2 S(i) set
- - ...?
+ - precision S(i) set without problem of odd of pow2
 
 Multicore options:
  1) naive parallelism, split equally the search range
- - warning! the lowest efficiency (w/Ncores)<sup>1/2</sup>
- - in process, wait..
  2) parallelism by Oorschot&Wiener
- - norm efficiency w1/2/Ncores
- - odd numbers U=V=2p+/-1, U+V<=Ncores
  - has problem of collisions between members of the same herd
- - in process, wait..
  3) parallelism by Pollard (best choice)
- - norm efficiency w<sup>1/2</sup>/Ncores
- - coprime number U+V<=Ncores
- - never problem of collisions between members of the same herd
- - in process, wait..
-
-Acceleration on several devices (i.e. with shared RAM) for 2) and 3) (w<sup>1/2</sup>/Ncores) can only be achieved using the pool.
+ - coprime/odd numbers U=V=2p+/-1, U+V<=Ncores
+ - without problem of collisions between members of the same herd
+ 
+*Acceleration on several devices (i.e. with shared RAM) for 2) and 3) (w<sup>1/2</sup>/Ncores) can only be achieved using the pool.
 Filtered distinguished points should be sent to the pool in a single hashtable.
+
+*removed support coincurve lib, reason: if u can install coincurv - that u can install gmpy2
 
 # Compilation
 
 Its python implementation, need install python 2 or 3.
 
-Raw python is more x10 slower, recommended install module gmpy2 or coincurve.
+Raw python is more x10 slower, recommended install module gmpy2.
 
 how to install gmpy2 on windows
  1) download file .whl from https://www.lfd.uci.edu/~gohlke/pythonlibs/
