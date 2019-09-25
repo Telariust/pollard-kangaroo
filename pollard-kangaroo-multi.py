@@ -30,7 +30,7 @@ min_cpu_cores	= 1
 prngseed	= 0	# 0 for random, or any for replay results
 flag_debug	= 0	# 0, 1, 2
 
-version = '1.01'
+version = '1.02'
 
 # low order pubkeys
 # default_table (demo/debug)
@@ -564,7 +564,11 @@ if __name__ == '__main__':
 	#print('[os] %s' % os.name)
 	if os.name == 'nt':
 		mp.freeze_support()
-	mp.set_start_method('spawn')
+
+	try:
+		mp.set_start_method('spawn')
+	except:
+		pass
 
                                        ##
 	print("[################################################]")
@@ -717,7 +721,8 @@ if __name__ == '__main__':
 		dS.append(2*dS[k])
 	print('[+] Sp-table of pow2 points - ready')
 
-	Sp_orig = Sp.copy(); dS_orig = dS.copy()
+	#Sp_orig = Sp.copy(); dS_orig = dS.copy()
+	Sp_orig = list(Sp); dS_orig = list(dS)
 	#print("[~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~]")
 	############
 	# timeit loop
