@@ -21,9 +21,12 @@ Runtime expected of 2w<sup>1/2</sup> group operations.
  - location privkey in keyspace on the strip
  - percent status progress, lost/left time
  - support arbitrary range (keyspace) start:end
+ - profiles settings/algorithms
 
 Expected in the future
+ - named argv
  - precision S(i) set without problem of odd of pow2
+ - <s>neural network for user entertainment speaking in the voice of Jarvis</s> or anything else
 
 Multicore options:
  1) naive parallelism, split equally the search range
@@ -36,7 +39,7 @@ Multicore options:
 *Acceleration on several devices (i.e. with shared RAM) for 2) and 3) (w<sup>1/2</sup>/Ncores) can only be achieved using the pool.
 Filtered distinguished points should be sent to the pool in a single hashtable.
 
-*removed support coincurve lib, reason: if u can install coincurv - that u can install gmpy2
+*removed support coincurve lib, reason: if u can install coincurve - that u can install gmpy2
 
 # Compilation
 
@@ -48,7 +51,9 @@ how to install gmpy2 on windows
  1) download file .whl from https://www.lfd.uci.edu/~gohlke/pythonlibs/
  2) put to root dir of python
  3) install as:
+ 
 Python27>python -m pip install gmpy2-2.0.8-cp27-cp27m-win_amd64.whl
+
 Python37>python -m pip install gmpy2-2.0.8-cp37-cp37m-win_amd64.whl
 
 # Benchmark libs
