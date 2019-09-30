@@ -9,7 +9,7 @@ from __future__ import print_function
 #######################
 # users settings
 
-pow2bits	= 42	# bits/suborder/exp key
+pow2bits	= 42	# bits (suborder) range search of keyspace (expected location of privkey)
 
 
 Ntimeit		= 10		# times for avg runtime
@@ -27,10 +27,11 @@ flag_profile	= "byPollard"		# best, expected 2w^(1/2)/cores jumps
 max_cpu_cores	= 128
 min_cpu_cores	= 1
 
-prngseed	= 0	# 0 for random, or any for replay results
-flag_debug	= 0	# 0, 1, 2
+flag_verbose	= 0	# 0, 1, 2
 
-version = '1.02'
+prngseed	= 0	# 0 for random, or any for replay results
+
+version = '1.03'
 
 # low order pubkeys
 # default_table (demo/debug)
@@ -96,10 +97,10 @@ else:
 
 
 #######################
-# secp256k1
+# ec secp256k1
 
-A_curve	= 0
-B_curve	= 7
+A_short	= 0
+B_short	= 7
 #modulo	= 2**256-2**32-2**9-2**8-2**7-2**6-2**4-1
 modulo	= 115792089237316195423570985008687907853269984665640564039457584007908834671663
 order	= 115792089237316195423570985008687907852837564279074904382605163141518161494337
@@ -113,8 +114,8 @@ Gy	= 326705100207588169780830851305070431844712733806592432759389043357573374824
 
 # python2+gmpy2 speed-up +8%
 if flag_gmpy2:
-	A_curve	= gmpy2.mpz(A_curve)
-	B_curve	= gmpy2.mpz(B_curve)
+	A_short	= gmpy2.mpz(A_short)
+	B_short	= gmpy2.mpz(B_short)
 	modulo	= gmpy2.mpz(modulo)
 	order	= gmpy2.mpz(order)
 	Gx	= gmpy2.mpz(Gx)
@@ -284,7 +285,7 @@ def prefSI(num):
 def time_format(time, v=(1,1,1,1,1,1,0,0)):
 	sec  = int(time)
 	msec = int((time%1)*1000)
-	mcsec= int((((time%1)*1000)%1)*1000)
+	usec = int((((time%1)*1000)%1)*1000)
 	res  = ''	
 	if v[0]: 
 		Y_tmp	= (sec//(60*60*24*30))//12
@@ -317,11 +318,11 @@ def time_format(time, v=(1,1,1,1,1,1,0,0)):
 		elif Y_tmp==M_tmp==d_tmp==h_tmp==m_tmp==s_tmp==0: 
 			res += ' '+'%03d'%(ms_tmp)						+'ms'	# msec
 	if v[7]:
-		mcs_tmp	= mcsec
+		us_tmp	= usec
 		if v[6]==1:
-			res += ' '+'%03d'%(mcs_tmp)
+			res += ' '+'%03d'%(us_tmp)
 		elif Y_tmp==M_tmp==d_tmp==h_tmp==m_tmp==s_tmp==ms_tmp==0: 
-			res += ' '+'%03d'%(mcs_tmp)						+'mcs'	# mcsec
+			res += ' '+'%03d'%(us_tmp)						+'us'	# usec
 	return res
 #print('[time] %s'%time_format(int(sys.argv[1]), (1,1,1,1,1,1,0,0)));exit(1)
 
@@ -381,7 +382,7 @@ def getPubkey(new_prvkey, flag_compress):
 
 # get JmaxofSp
 def getJmaxofSp(optimalmeanjumpsize, dS):
-	if flag_debug > 0: 
+	if flag_verbose > 0: 
 		print('[optimal_mean_jumpsize] %s' % optimalmeanjumpsize)
 
 	sumjumpsize = 0
@@ -396,16 +397,16 @@ def getJmaxofSp(optimalmeanjumpsize, dS):
 		#next_meanjumpsize	= int(round(1.0*(sumjumpsize+2**i)/i))
 		next_meanjumpsize	= int(round(1.0*(sumjumpsize+dS[i])/i))
 
-		if flag_debug > 1: 
+		if flag_verbose > 1: 
 			print('[meanjumpsize#%03dj] %s(now) <= %s(optimal) <= %s(next)' % (i, now_meanjumpsize, optimalmeanjumpsize, next_meanjumpsize ))
 
 
 		if  optimalmeanjumpsize - now_meanjumpsize <= next_meanjumpsize - optimalmeanjumpsize : 
-			if flag_debug > 0: 
+			if flag_verbose > 0: 
 				print('[JmaxofSp] Sp[%s]=%s nearer to optimal mean jumpsize of Sp set' % (i, now_meanjumpsize))
 
 			# location in keyspace on the strip
-			if flag_debug > 0:
+			if flag_verbose > 0:
 				if (optimalmeanjumpsize - now_meanjumpsize) >= 0:
 					len100perc = 60
 					size1perc = (next_meanjumpsize-now_meanjumpsize)//len100perc
@@ -438,29 +439,29 @@ def getJmaxofSp(optimalmeanjumpsize, dS):
 
 # Checks whether the given point lies on the elliptic curve
 def is_on_curve(Xcoord,Ycoord, p=modulo):
-	# convert short->full:  a_full=0, b_full=a_short, c_full=b_short
-	# convert full->short:  a_short=b_full, b_short=c_full (if a_full!=0 - convert impossible!)
+	# convert short->full:  A_full=0, B_full=A_short, C_full=B_short
+	# convert full->short:  A_short=B_full, B_short=C_full (if A_full!=0 - convert impossible!)
 
 	# short form Weierstrass cubic 
-	# a_short, b_short
+	# A_short, B_short
 	# y^2 = x^3 + a*x + b over Fp
-        return ((Ycoord * Ycoord) - (Xcoord * Xcoord * Xcoord) - (A_curve * Xcoord) - B_curve) % p == 0
+        return ((Ycoord * Ycoord) - (Xcoord * Xcoord * Xcoord) - (A_short * Xcoord) - B_short) % p == 0
 
 	# full  form Weierstrass cubic 
-	# a_full, b_full, c_full
+	# A_full, B_full, C_full
 	# y^2 = x^3 + a*x^2 + b*x + c over Fp
-        #return ((Ycoord * Ycoord) - (Xcoord * Xcoord * Xcoord) - (A_curve * Xcoord * Xcoord) - (B_curve * Xcoord) - C_curve) % p == 0
+        #return ((Ycoord * Ycoord) - (Xcoord * Xcoord * Xcoord) - (A_full * Xcoord * Xcoord) - (B_full * Xcoord) - C_full) % p == 0
 
 
 #######################
 # KANGAROO
 
-def KANGAROO(id_uniq, Sp, dS, Kp, dK, DPmodule, JmaxofSp, jump_step, queue_broadcast, queue_repair):
+def KANGAROO(id_uniq, Sp, dS, Kp, dK, DPmodule, JmaxofSp, jump_step, send2parent, recv_repair):
 
 	#parrent_pid = os.getppid()
 	child_pid  = os.getpid()
 	child_name = mp.current_process().name
-	if flag_debug > 0: 
+	if flag_verbose > 0: 
 		print("[childs][%s#%s] run.." % (child_name, child_pid))
 
 
@@ -494,7 +495,7 @@ def KANGAROO(id_uniq, Sp, dS, Kp, dK, DPmodule, JmaxofSp, jump_step, queue_broad
 			if Xcoord % DPmodule == 0:
 
 				# send new distinguished point to parent
-				queue_broadcast.put_nowait({'id_uniq': id_uniq, 'pid': child_pid, 'name': child_name
+				send2parent.put_nowait({'id_uniq': id_uniq, 'pid': child_pid, 'name': child_name
 						, 'diffjumps': False, 'Xcoord': Xcoord, 'dK': dK})
 				repair_Kp.append(Kp)
 				repair_dK.append(dK)
@@ -512,7 +513,7 @@ def KANGAROO(id_uniq, Sp, dS, Kp, dK, DPmodule, JmaxofSp, jump_step, queue_broad
 			if flag_delay == "by jumps" or (t2-t1)>=time_step:
 
 				# send diffjumps to parent
-				queue_broadcast.put_nowait(
+				send2parent.put_nowait(
 						{'id_uniq': id_uniq, 'pid': child_pid, 'name': child_name
 						, 'diffjumps': countj-last_countj, 'Xcoord': False, 'dK': False}
 				)
@@ -521,10 +522,10 @@ def KANGAROO(id_uniq, Sp, dS, Kp, dK, DPmodule, JmaxofSp, jump_step, queue_broad
 				last_countj = countj
 
 				# repair
-			if not queue_repair.empty():
+			if not recv_repair.empty():
 				#if 0:
 					# recv msg from parent about repair 
-					msg = queue_repair.get_nowait()
+					msg = recv_repair.get_nowait()
 					dK		= msg['dK']
 
 					# check if already repaired
@@ -542,7 +543,7 @@ def KANGAROO(id_uniq, Sp, dS, Kp, dK, DPmodule, JmaxofSp, jump_step, queue_broad
 							dK = repair_dK[index] + (1<<pow2offset) +1
 							Kp = add_a(add_a(repair_Kp[index], Sp[pow2offset]), Sp[0])
 
-						if flag_debug > 0: 
+						if flag_verbose > 0: 
 							printstr  = '\n'
 							printstr += '[childs][%s#%s] repair#*/*:' % (child_name, child_pid)
 							#printstr += ' 0x%064x' % (getXcoord(repair_Kp[index]))
@@ -595,17 +596,17 @@ if __name__ == '__main__':
 	print('[cpu] %s cores available (min=%s; max=%s)' % (cpu_cores, min_cpu_cores, max_cpu_cores))
 
 	pid = os.getpid()
-	if flag_debug > 0: 
+	if flag_verbose > 0: 
 		print("[parent#main] pid#%s " % (pid))
 	print("[~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~]")
 
-	if flag_debug not in (0,'0',False,'False','false',''):
-		print('[DEBUG] level=%s' % flag_debug)
+	if flag_verbose not in (0,'0',False,'False','false',''):
+		print('[DEBUG] level=%s' % flag_verbose)
 
 	if prngseed in (0,'0',False,'False','false',''):
 		prngseed = random.randint(1,2**32)
 	random.seed(prngseed)
-	if flag_debug > -1: 
+	if flag_verbose > -1: 
 		print('[PRNGseed] %s' % prngseed)
 
 	if flag_gmpy2:
@@ -727,15 +728,26 @@ if __name__ == '__main__':
 	############
 	# timeit loop
 
-	starttime = time.time()
+	# delay loop checker messages of parent
+	time_delay = 0.05/cpu_cores
 
+	# delay between messages from childs
+	if flag_gmpy2:
+		jump_step = 10000
+	else:
+		jump_step = 1000
+
+	# parent print progress
+	print_eachNjumps = jump_step * cpu_cores
+
+	starttime = time.time()
 	list_sumjump, list_runtime, list_dpkgr = list(), list(), list()
 
 	#timeit
-	for i in xrange(Ntimeit):
+	for n_timeit in xrange(1,Ntimeit+1):
 
-		print("[~~~~~~~~~~~~~~~~~~~~~~[%s/%s]~~~~~~~~~~~~~~~~~~~~~]"%(i+1,Ntimeit))
-		if flag_debug > 1: 
+		print("[~~~~~~~~~~~~~~~~~~~~~~[%s/%s]~~~~~~~~~~~~~~~~~~~~~]" % (n_timeit, Ntimeit))
+		if flag_verbose > 1: 
 			save2file('tame.txt', 'w', '')
 			save2file('wild.txt', 'w', '')
 
@@ -764,8 +776,15 @@ if __name__ == '__main__':
 					#pubkey0 = getPubkey(prvkey0, False)	# uncompressed
 					print('[i] pubkey#%s randomly generated in range [2^%s..2^%s]' % (pow2bits, pow2L, pow2U))
 
+
+			if prvkey0 not in (0,'0',False,'False','false',''):
+				if flag_pow2bits:
+					print('[prvkey#%s] 0x%064x' % (pow2bits,prvkey0))
+				if flag_keyspace:
+					print('[prvkey#xx] 0x%064x' % (prvkey0))
+
 			# location in keyspace on the strip
-			if flag_debug > -1 :
+			if flag_verbose > -1 :
 				if prvkey0 not in (0,'0',False,'False','false',''):
 					len100perc = 60
 					size1perc = W//len100perc
@@ -776,27 +795,24 @@ if __name__ == '__main__':
 						, pow2U)
 					);#exit(1)
 
-			if flag_pow2bits:
-				if prvkey0 not in (0,'0',False,'False','false',''):
-					print('[prvkey#%s] 0x%064x' % (pow2bits,prvkey0))
-				print('[pubkey#%s] %s' % (pow2bits,pubkey0))
-			if flag_keyspace:
-				if prvkey0 not in (0,'0',False,'False','false',''):
-					print('[prvkey#xx] 0x%064x' % (prvkey0))
-				print('[pubkey#xx] %s' % (pubkey0))
+			if 1:
+				if flag_pow2bits:
+					print('[pubkey#%s] %s' % (pow2bits,pubkey0))
+				if flag_keyspace:
+					print('[pubkey#xx] %s' % (pubkey0))
 	
 			# check format pubkey
 			if len(pubkey0)==130:
 				X = int(pubkey0[2:66], 16)
 				Y = int(pubkey0[66:],16)
 				flag_compress = False
-				print("[format] uncompressed")
+				#print("[format] uncompressed")
 			elif len(pubkey0)==66:
 				X = int(pubkey0[2:66], 16)
 				# calculation Y from X if pubkey is compressed
 				Y = getX2Y(X,int(pubkey0[:2])-2)
 				flag_compress = True
-				print("[format] compressed")
+				#print("[format] compressed")
 			else:
 				print("[error] pubkey len(66/130) invalid!")
 				usage()
@@ -829,7 +845,7 @@ if __name__ == '__main__':
 				#xU = getPrimeInt((cpu_cores//2)-1)
 				#xV = getPrimeInt((cpu_cores//2)+1)
 
-				if flag_debug > 0:
+				if flag_verbose > 0:
 					print("[U] %s (0x%02x)" % (xU,xU))
 					print("[V] %s (0x%02x)" % (xV,xV))
 
@@ -837,7 +853,7 @@ if __name__ == '__main__':
 					Sp[k] = mul_ka(xU*xV, Sp_orig[k])
 					dS[k] = xU*xV*dS_orig[k]
 
-				if flag_debug > 0: 
+				if flag_verbose > 0: 
 					print('[+] recalc Sp-table of multiply UV')
 
 			elif flag_profile == "NaiveSplitRange":
@@ -846,19 +862,6 @@ if __name__ == '__main__':
 				xU = xV = cpu_cores//2
 			else:
 				xU = xV = cpu_cores//2
-
-
-		# delay loop checker messages of parent
-		time_delay = 0.05/cpu_cores
-
-		# delay between messages from childs
-		if flag_gmpy2:
-			jump_step = 10000
-		else:
-			jump_step = 1000
-
-		# parent print progress
-		print_eachNjumps = jump_step * cpu_cores
 
 
 		# mean jumpsize
@@ -896,7 +899,7 @@ if __name__ == '__main__':
 		DPmodule = 2**pow2dp
 
 
-		if flag_debug > 0: 
+		if flag_verbose > 0: 
 			#print('[sizeJmax] 2^%s		= %s (0x%02x)' % (JmaxofSp, sizeJmax, sizeJmax))
 			print('[sizeJmax] S[%s]	= %s (0x%02x)' % (JmaxofSp, sizeJmax, sizeJmax))
 			print('[DPmodule] 2^%s		= %s (0x%02x)' % (pow2dp, DPmodule, DPmodule))
@@ -937,7 +940,7 @@ if __name__ == '__main__':
 					dT[k] += 1; 
 					pass
 
-			if flag_debug > 1:	print('dT[%s] 0x%064x' % (k,dT[k]))
+			if flag_verbose > 1:	print('dT[%s] 0x%064x' % (k,dT[k]))
 
 			Tp.append(mul_ka(dT[k]))
 	
@@ -962,7 +965,7 @@ if __name__ == '__main__':
 					#dW.append( random.randint(1, W) )	# by 57fe
 					dW.append( random.randint(1, W//2) )
 
-			if flag_debug > 1:	print('dW[%s] 0x%064x' % (k,dW[k]))
+			if flag_verbose > 1:	print('dW[%s] 0x%064x' % (k,dW[k]))
 
 			Wp.append(add_a(W0p,mul_ka(dW[k])))
 
@@ -981,8 +984,8 @@ if __name__ == '__main__':
 		repairDT = repairDW = 0
 		countDT = countDW = 0
 
-		queue_broadcast = mp.Queue()
-		queue_repair = dict()
+		parent_reciver = mp.Queue()
+		send2childs = dict()
 
 		############
 		# run childs
@@ -992,14 +995,14 @@ if __name__ == '__main__':
 		## Tame herd, start childs
 		for k in range(xU):
 			id_uniq = k
-			queue_repair[id_uniq] = mp.Queue()
+			send2childs[id_uniq] = mp.Queue()
 			proc = mp.Process(target=KANGAROO
 				, name='tame-'+str(k+1)
 				, args=( id_uniq 
 					, Sp, dS 
 					, Tp[k], dT[k]
 					, DPmodule, JmaxofSp, jump_step
-					, queue_broadcast, queue_repair[id_uniq]
+					, parent_reciver, send2childs[id_uniq]
 				,)
 			)
 			proc.daemon=True
@@ -1011,14 +1014,14 @@ if __name__ == '__main__':
 		## Wild herd, start childs
 		for k in range(xV):
 			id_uniq = k+xU
-			queue_repair[id_uniq] = mp.Queue()
+			send2childs[id_uniq] = mp.Queue()
 			proc = mp.Process(target=KANGAROO
 				, name='wild-'+str(k+1)
 				, args=( id_uniq 
 					, Sp, dS 
 					, Wp[k], dW[k]
 					, DPmodule, JmaxofSp, jump_step
-					, queue_broadcast, queue_repair[id_uniq]
+					, parent_reciver, send2childs[id_uniq]
 				,)
 			)
 			proc.daemon=True
@@ -1034,31 +1037,31 @@ if __name__ == '__main__':
 			#time.sleep(0.01)
 			time.sleep(time_delay)
 
-			if not queue_broadcast.empty():
+			if not parent_reciver.empty():
 
-				msg  = queue_broadcast.get_nowait()
+				msg  = parent_reciver.get_nowait()
 
 				id_uniq		 = msg['id_uniq']
 				child_pid	 = msg['pid']
 				child_name	 = msg['name']
 
 				# send new distinguished point to parent
-				#queue_broadcast.put_nowait({'id_uniq': id_uniq, 'pid': child_pid, 'name': child_name
+				#send2parent.put_nowait({'id_uniq': id_uniq, 'pid': child_pid, 'name': child_name
 				#		, 'diffjumps': False, 'Xcoord': Xcoord, 'dK': dK})
 
-				#queue_broadcast.put_nowait(
+				#send2parent.put_nowait(
 				#		{'id_uniq': id_uniq, 'pid': child_pid, 'name': child_name
 				#		, 'diffjumps': countj-last_countj, 'Xcoord': False, 'dK': False}
 
 				if msg['diffjumps'] != False:
 					sumjump	+= msg['diffjumps']
-					if flag_debug > 1: 
+					if flag_verbose > 1: 
 						print("\n[childs][%s#%s] +%s jumps %40s" % (child_name,child_pid, msg['diffjumps'], ' '));
 				else:
 					Xcoord	 = msg['Xcoord']
 					dK	 = msg['dK']
 
-					if flag_debug > 1: 
+					if flag_verbose > 1: 
 						print("\n[childs][%s#%s] newDP: X=%064x " % (child_name,child_pid, Xcoord));
 						print("\n[childs][%s#%s] newDP: dK=0x%x " % (child_name,child_pid, dK));
 
@@ -1069,16 +1072,16 @@ if __name__ == '__main__':
 						except:
 							# add new distinguished point
 							DTp[Xcoord] = dK
-							if flag_debug > 1: 
+							if flag_verbose > 1: 
 								save2file('tame.txt', 'a', '%064x %s\n'%(Xcoord,dK) )
 						else:
 							# repeat detected!
 							repairDT += 1
-							if flag_debug > 0: 
+							if flag_verbose > 0: 
 								#print('\n[parent][%s#%s] repair#%s/%s: 0x%064x ' % (child_name,child_pid, repairDT,repairDW, Xcoord));
 								print('\n[parent][%s#%s] repair#%s/%s: 0x%x ' % (child_name,child_pid, repairDT,repairDW, dK));
 							# need fix same sequences
-							queue_repair[id_uniq].put_nowait({'dK': dK})
+							send2childs[id_uniq].put_nowait({'dK': dK})
 
 					# Wild herd
 					#if id_uniq >= xU:
@@ -1088,16 +1091,16 @@ if __name__ == '__main__':
 						except:
 							# add new distinguished point
 							DWp[Xcoord] = dK
-							if flag_debug > 1: 
+							if flag_verbose > 1: 
 								save2file('wild.txt', 'a', '%064x %s\n'%(Xcoord,dK) )
 						else:
 							# repeat detected!
 							repairDW += 1
-							if flag_debug > 0: 
+							if flag_verbose > 0: 
 								#print('\n[parent][%s#%s] repair#%s/%s: 0x%064x ' % (child_name,child_pid, repairDT,repairDW, Xcoord));
 								print('\n[parent][%s#%s] repair#%s/%s: 0x%x ' % (child_name,child_pid, repairDT,repairDW, dK));
 							# need fix same sequences
-							queue_repair[id_uniq].put_nowait({'dK': dK})
+							send2childs[id_uniq].put_nowait({'dK': dK})
 
 
 					# compare distinguished points, Tame herd & Wild herd
@@ -1129,7 +1132,7 @@ if __name__ == '__main__':
 				countDT = len(DTp); countDW = len(DWp);
 
 				# info
-				if (flag_debug > 0 and (t2_info-t1_info)>10.0)  or prvkey:
+				if (flag_verbose > 0 and (t2_info-t1_info)>10.0)  or prvkey:
 					printstr  = '\r[i] DP %sT+%sW=%s+%s=%s; dp/kgr=%.1f' % ( xU, xV
 							, countDT,countDW, countDT+countDW, 1.0*(countDT+countDW)/2
 							)
@@ -1158,7 +1161,7 @@ if __name__ == '__main__':
 							#, 2*Wsqrt if 2*Wsqrt < 10**3 else prefSI(2*Wsqrt)
 							, (1.0*sumjump/(2*Wsqrt))*100
 							)
-					if 1 or flag_debug < 1: 
+					if 1 or flag_verbose < 1: 
 						printstr += '; dp/kgr=%.1f' % ( 1.0*(countDT+countDW)/2 )
 					#printstr += 'lost_TIME_left'
 					timeleft = (t2-t0)*(1-(1.0*sumjump/(2*Wsqrt)))/(1.0*sumjump/(2*Wsqrt))
@@ -1198,27 +1201,10 @@ if __name__ == '__main__':
 		
 		print('')
 		print('[prvkey#%s] 0x%064x' % (pow2bits,prvkey) )
-		save2file('results.txt', 'a', ('%064x\n'%prvkey, '---------------\n'))
-
-		# double-check privkey
-		if prvkey0 not in (0,'0',False,'False','false',''):
-			if prvkey != prvkey0:
-				print('[origin#%s] 0x%064x' % (pow2bits,prvkey0))
-				print('[prvkey-check] failed!')
-
-		# double-check pubkey
-		if 1:
-			#pubkey = str(bytes_to_hex(PublicKey.from_valid_secret(int_to_bytes_padded(prvkey)).format(flag_compress)))
-			pubkey = getPubkey(prvkey,flag_compress)
-
-			if pubkey != pubkey0:
-				print('[pubkey#%s] %s' % (pow2bits,pubkey))
-				print('[origin#%s] %s' % (pow2bits,pubkey0))
-				print('[pubkey-check] failed!')
 
 		# location in keyspace on the strip
 		if 1:
-			if flag_debug > -1:
+			if flag_verbose > -1:
 				len100perc = 60
 				size1perc = W//len100perc
 				print("[i] [2^%.1f|%s%s%s|2^%.1f]" % (
@@ -1230,6 +1216,23 @@ if __name__ == '__main__':
 					)
 				);#exit(1)
 		
+
+		# double-check privkey
+		if prvkey0 not in (0,'0',False,'False','false',''):
+			if prvkey != prvkey0:
+				print('[origin#%s] 0x%064x' % (pow2bits,prvkey0))
+				print('[prvkey-check] failed!')
+
+		# double-check pubkey
+		pubkey = getPubkey(prvkey,flag_compress)
+		if pubkey != pubkey0:
+			print('[pubkey#%s] %s' % (pow2bits,pubkey))
+			print('[origin#%s] %s' % (pow2bits,pubkey0))
+			print('[pubkey-check] failed!')
+		#else:
+		if 1:
+			save2file('results.txt', 'a', ('%064x:%s\n' % (prvkey, pubkey), '---------------\n'))
+
 		# finish stat
 		printstr = '[i] %s j/s; %sj of %sj %.1f%%; DP T+W=%s+%s=%s; dp/kgr=%.1f' % (
 			 prefSI(sumjump/1) if runtime==0 else prefSI(sumjump/runtime)
