@@ -31,7 +31,7 @@ flag_verbose	= 0	# 0, 1, 2
 
 prngseed	= 0	# 0 for random, or any for replay results
 
-version = '1.03'
+version = '1.04'
 
 # low order pubkeys
 # default_table (demo/debug)
@@ -137,7 +137,7 @@ Zp = Point(0,0)	# zero-point, infinite in real x,y - plane
 # math, raw python
 
 
-# from arulberoECC library
+# from arulberoEC library
 # more fastest
 def invert(b, p=modulo):	
 	u, v = b%p, p
@@ -393,17 +393,18 @@ def getJmaxofSp(optimalmeanjumpsize, dS):
 		#sumjumpsize += 2**(i-1)
 		sumjumpsize += dS[i-1]
 
-		now_meanjumpsize	= int(round(1.0*(sumjumpsize+0)/i))
-		#next_meanjumpsize	= int(round(1.0*(sumjumpsize+2**i)/i))
-		next_meanjumpsize	= int(round(1.0*(sumjumpsize+dS[i])/i))
+		now_meanjumpsize	= int(round(1.0*(sumjumpsize)/(i)))
+
+		#next_meanjumpsize	= int(round(1.0*(sumjumpsize+2**i)/(i+1)))
+		next_meanjumpsize	= int(round(1.0*(sumjumpsize+dS[i])/(i+1)))
 
 		if flag_verbose > 1: 
-			print('[meanjumpsize#%03dj] %s(now) <= %s(optimal) <= %s(next)' % (i, now_meanjumpsize, optimalmeanjumpsize, next_meanjumpsize ))
+			print('[meanjumpsize#Sp[%d]] %s(now) <= %s(optimal) <= %s(next)' % (i, now_meanjumpsize, optimalmeanjumpsize, next_meanjumpsize ))
 
 
 		if  optimalmeanjumpsize - now_meanjumpsize <= next_meanjumpsize - optimalmeanjumpsize : 
 			if flag_verbose > 0: 
-				print('[JmaxofSp] Sp[%s]=%s nearer to optimal mean jumpsize of Sp set' % (i, now_meanjumpsize))
+				print('[meanjumpsize#Sp[%d]] %s(now) <= %s(optimal) <= %s(next)' % (i, now_meanjumpsize, optimalmeanjumpsize, next_meanjumpsize ))
 
 			# location in keyspace on the strip
 			if flag_verbose > 0:
@@ -419,8 +420,9 @@ def getJmaxofSp(optimalmeanjumpsize, dS):
 					if 1.0*abs(optimalmeanjumpsize-now_meanjumpsize)/abs(next_meanjumpsize-optimalmeanjumpsize) >= 0.25 :
 						print("[i] this Sp set has low efficiency (over -25%) for this mean jumpsize")
 				else:
-					now_meanjumpsize	= int(round(1.0*(sumjumpsize-dS[i])/(i-1)))
-					next_meanjumpsize	= int(round(1.0*(sumjumpsize+0)/(i-1)))
+					# recovery last step
+					now_meanjumpsize	= int(round(1.0*(sumjumpsize-dS[i-1])/(i-1)))
+					next_meanjumpsize	= int(round(1.0*(sumjumpsize)/(i)))
 
 					len100perc = 60
 					size1perc = (next_meanjumpsize-now_meanjumpsize)//len100perc
@@ -434,7 +436,12 @@ def getJmaxofSp(optimalmeanjumpsize, dS):
 						print("[i] this Sp set has low efficiency (over -25%) for this mean jumpsize")
 				#exit(1)
 
+			if flag_verbose > 0: 
+				print('[JmaxofSp] Sp[%s]=%s nearer to optimal mean jumpsize of Sp set' % (i, now_meanjumpsize))
+
 			return i
+
+	print("\n[FATAL_ERROR] JmaxofSp not defined!\n"); exit(-1)
 
 
 # Checks whether the given point lies on the elliptic curve
@@ -1113,7 +1120,7 @@ if __name__ == '__main__':
 						elif	dDW > dDT:
 							prvkey = dDW - dDT
 						else:
-							print("\n[error] dDW == dDT !!! (0x%x) "%dDW);exit(-1)
+							print("\n[FATAL_ERROR] dDW == dDT !!! (0x%x)\n" % (dDW));exit(-1)
 
 			#exit(1)
 
